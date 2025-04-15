@@ -1,0 +1,22 @@
+# Enable only what you need
+prometheus-node-exporter:
+  enabled: true
+
+kube-state-metrics:
+  enabled: false
+
+grafana:
+  enabled: true # Enable later when you're ready for dashboards
+
+alertmanager:
+  enabled: false # Optional for now
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    additionalScrapeConfigs:
+    - job_name: 'cadvisor'
+      static_configs:
+      - targets: [ 'cadvisor.monitoring.svc.cluster.local:8080' ]
