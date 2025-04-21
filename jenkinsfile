@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    environment {
+        // Define the namespace where Prometheus will be installed
+        MONITORING_NAMESPACE = 'monitoring'
+        // Path to the custom values.yaml file for Prometheus Helm chart
+        VALUES_FILE = 'path/to/your/values.yaml'
+        // Name of the Helm release (optional)
+        HELM_RELEASE = 'prometheus'
+    }
+
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    // Clean workspace before starting the deployment (optional but recommended)
+                    cleanWs()
+                    echo "Preparation Stage: Preparing to deploy Prometheus monitoring stack"
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    // Add Prometheus Community Helm repo if it's not already added
+                    sh '''
+                    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+                    helm repo update
+                    '''
+                }
+            }
+        }
+
+        stage('Helm Chart Deployment') {
+            steps {
+                script {
+                    // Ensure the 'monitoring' namespace exists
+                    sh "kubectl create namespace ${MONITORING_NAMESPACE} || echo 'Namespace already exists'"
+
+                    // Install/Upgrade Prometheus using Helm in the monitoring namespace
+                    sh """
+                    helm upgrade --install ${HELM_RELEASE} prometheus-community/kube-prometheus-stack \
+                    --namespace ${MONITORING_NAMESPACE} \
+                    -f ${VALUES_FILE}
+                    """
+                }
+            }
+        }
+
+        stage('Verification') {
+            steps {
+                script {
+                    // Check if Prometheus pods are deployed successfully
+                    echo "Verification Stage: Verifying the deployment"
+
+                    def pods = sh(script: "kubectl get pods -n ${MONITORING_NAMESPACE} -o custom-columns=':metadata.name'", returnStdout: true).trim().split("\n")
+                    def isPrometheusPodRunning = pods.any { it.contains('prometheus-kube-prometheus-prometheus') }
+
+                    if (isPrometheusPodRunning) {
+                        echo "Prometheus pod is running successfully!"
+                    } else {
+                        error "Prometheus pod is not running!"
+                    }
+                }
+            }
+        }
+
+        stage('Post-deployment Cleanup') {
+            steps {
+                script {
+                    // Optional: Clean up any resources if necessary
+                    echo "Post-deployment Cleanup: Cleaning up any unused resources"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Prometheus monitoring stack deployed successfully!'
+        }
+        failure {
+            echo 'Deployment failed. Check the logs for details.'
+        }
+    }
+}

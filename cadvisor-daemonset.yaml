@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: cadvisor
-  namespace: monitoring
+  namespace: jenkins
 spec:
   selector:
     matchLabels:
@@ -16,7 +16,7 @@ spec:
       - name: cadvisor
         image: gcr.io/cadvisor/cadvisor:v0.47.2
         ports:
-        - containerPort: 8080
+        - containerPort: 8081
           name: http
         volumeMounts:
         - name: rootfs
